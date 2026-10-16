@@ -1,0 +1,13 @@
+ .github/workflows/tests.yml     | 17 [32m++++++++++[m
+ .gitignore                      | 48 [32m++++++++++++++++++++++++++++[m
+ README.md                       | 70 [32m+++++++++++++++++++++++++++++++++++++++++[m
+ pyproject.toml                  | 29 [32m+++++++++++++++++[m
+ src/hankel_anomaly/__init__.py  |  2 [32m++[m
+ src/hankel_anomaly/artifacts.py | 15 [32m+++++++++[m
+ src/hankel_anomaly/config.py    | 14 [32m+++++++++[m
+ src/hankel_anomaly/data.py      | 49 [32m+++++++++++++++++++++++++++++[m
+ src/hankel_anomaly/models.py    | 70 [32m+++++++++++++++++++++++++++++++++++++++++[m
+ src/hankel_anomaly/scoring.py   | 25 [32m+++++++++++++++[m
+ src/hankel_anomaly/training.py  | 39 [32m+++++++++++++++++++++++[m
+ tests/test_scoring.py           | 37 [32m++++++++++++++++++++++[m
+ 12 files changed, 415 insertions(+)
