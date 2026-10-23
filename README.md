@@ -1,70 +1,374 @@
-# Hankel anomaly detection: production-oriented starter
+# Hankel Anomaly Detection
 
-This is a first refactoring step for the research script. It separates model definitions,
-data utilities, training, scoring, and artifact handling, and adds basic tests and CI.
+This project refactors a research implementation of Hankel-based anomaly detection into a modular Python project. It separates data loading, model training, evaluation, and experiment tracking, and includes automated tests and GitHub Actions for continuous integration.
 
-## Important scope note
+The project is intended as a starting point for making a research implementation more reproducible and easier to maintain.
 
-The original `.mat` data files were not included with the Python script. Therefore, this
-starter does **not** claim that the entire experiment has been reproduced end-to-end.
-Before connecting the real data, verify the shape and meaning of each MATLAB variable.
-In particular, check how the original script uses `N`, `Hank_rank`, `MC`, and the
-shapes of `H_M_all`, `H_test_all`, `H_Sd1_all`, and `H_Sd2_all`.
+## 1. Project Features
 
-## 1. Set up the environment (Windows PowerShell)
+- MATLAB data loading and input validation.
+- A two-stage training pipeline for Hankel-based anomaly detection.
+- Ambient training-data generation with configurable `margin_struct`.
+- Anomaly scoring and threshold calibration.
+- Model and evaluation artifact handling.
+- MLflow experiment tracking for training and evaluation.
+- Comparison of experiments with different `margin_struct` values.
+- Automated tests and code checks through GitHub Actions.
 
-From this project folder:
+## 2. Requirements and Installation
+
+Python 3.10 or newer is required.
+
+Create and activate a virtual environment in Windows PowerShell from the project root:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
+```
+
+Install the project and its development dependencies:
+
+```powershell
 python -m pip install -e ".[dev]"
 ```
 
-If PowerShell blocks activation, you can run the environment's Python directly:
+To include MLflow experiment tracking, install the optional tracking dependency as well:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,tracking]"
+```
+
+The main dependencies include PyTorch, NumPy, SciPy, and Matplotlib. The development dependencies include pytest and Ruff, while MLflow is installed separately as an optional dependency.
+
+If PowerShell blocks virtual-environment activation, use the environment's Python executable directly:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,tracking]"
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Use `python -m pytest`, rather than `pytest`, to avoid the PATH problem where the
-`pytest` command is not found.
+## 3. Project Structure
 
-## 2. Run tests
+The main components are organized as follows:
+
+- `src/hankel_anomaly/`: reusable modules for data loading, training, evaluation, and experiment tracking.
+- `scripts/train_model_mlflow.py`: training entry point with MLflow experiment tracking.
+- `scripts/evaluate_model_mlflow.py`: evaluation entry point with MLflow experiment tracking.
+- `scripts/compare_mlflow_runs.py`: comparison of recorded MLflow runs.
+- `tests/`: automated tests for data preparation, evaluation, and the training pipeline.
+- `.github/workflows/tests.yml`: GitHub Actions workflow for running tests and code checks.
+- `pyproject.toml`: package configuration, dependencies, and development-tool settings.
+
+## 4. MLflow Experiment Tracking
+
+The project provides separate training and evaluation scripts that use MLflow to organize experiments. This keeps experiment tracking separate from the reusable training and evaluation modules.
+
+The scripts record experiment parameters, training information, evaluation metrics, and artifacts according to their implementations.
+
+Two tracking options are supported: a local MLflow server and a Databricks workspace.
+
+### 4.1. Local MLflow tracking
+
+Install MLflow if you have not already installed it:
+
+```powershell
+python -m pip install -e ".[dev,tracking]"
+```
+
+Start the local MLflow server in a separate PowerShell terminal from the project root:
+
+```powershell
+python -m mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db
+```
+
+Keep the server running. The local tracking URI is:
+
+```text
+http://127.0.0.1:5000
+```
+
+Open this address in a browser to inspect recorded experiments and runs.
+
+When using the local server, ensure that the scripts use the local tracking URI. When using Databricks, configure the tracking URI as described below.
+
+### 4.2. Databricks MLflow tracking
+
+Databricks provides a remote tracking backend for storing and comparing experiments. The project uses the following experiment location:
+
+```text
+/Shared/hankel-anomaly-detection
+```
+
+The steps below use Windows PowerShell and the Databricks CLI.
+
+#### Step 1: Install the Databricks CLI
+
+Install the Databricks CLI using the [official installation instructions](https://docs.databricks.com/aws/en/dev-tools/cli/install).
+
+Verify that the CLI is available:
+
+```powershell
+databricks -v
+```
+
+#### Step 2: Create a Databricks authentication profile
+
+A configuration profile stores the workspace connection settings and identifies the authentication configuration used by the CLI and compatible Python tools.
+
+Authenticate interactively using your workspace URL:
+
+```powershell
+databricks auth login --host "https://YOUR_DATABRICKS_WORKSPACE_URL" --profile YOUR_PROFILE_NAME
+```
+
+Replace the placeholders:
+
+- `YOUR_DATABRICKS_WORKSPACE_URL`: the workspace hostname from your browser's address bar, without additional paths such as `/browse`.
+- `YOUR_PROFILE_NAME`: a profile name you choose, for example, `hankel-project`.
+
+For example, the command structure is:
+
+```powershell
+databricks auth login --host "https://YOUR_WORKSPACE_HOST" --profile hankel-project
+```
+
+The command opens a browser-based authentication flow. Sign in and follow the prompts to complete authentication.
+
+**Important:** Use the base workspace URL, not the URL of a page inside the workspace. If an existing profile contains an incorrect host, use a new profile name for this setup or correct the existing configuration before proceeding.
+
+#### Step 3: Understand the profile configuration file
+
+On Windows, the default Databricks CLI configuration file is:
+
+```text
+%USERPROFILE%\.databrickscfg
+```
+
+The CLI creates or updates the profile configuration during authentication. You normally do not need to create this file manually.
+
+A profile has a structure similar to the following:
+
+```ini
+[hankel-project]
+host = https://YOUR_DATABRICKS_WORKSPACE_URL
+auth_type = databricks-cli
+```
+
+This is an illustrative configuration structure, not a replacement for the authentication process. The CLI manages the authentication credentials, and modern OAuth-based authentication can store tokens in Windows Credential Manager rather than writing them into this file.
+
+If you already have a working profile, you can keep using it. The profile name in the commands below must match the name you configured.
+
+#### Step 4: Verify the profile
+
+List your available profiles and check their validity:
+
+```powershell
+databricks auth profiles
+```
+
+Inspect the configuration for your chosen profile:
+
+```powershell
+databricks auth describe --profile hankel-project
+```
+
+Finally, verify that the profile can access the workspace and retrieve your user identity:
+
+```powershell
+databricks current-user me --profile hankel-project
+```
+
+Replace `hankel-project` if you chose another profile name.
+
+The profile should identify the correct workspace and authenticate successfully before you continue.
+
+#### Step 5: Configure MLflow to use the profile
+
+From the project's PowerShell terminal, select the profile:
+
+```powershell
+$env:DATABRICKS_CONFIG_PROFILE = "hankel-project"
+```
+
+Configure MLflow to use Databricks tracking:
+
+```powershell
+$env:MLFLOW_TRACKING_URI = "databricks"
+```
+
+These environment variables apply to the current PowerShell session. Set them again in a new terminal when needed.
+
+Install the tracking dependencies if necessary:
+
+```powershell
+python -m pip install -e ".[dev,tracking]"
+```
+
+The Python MLflow scripts must use the same Databricks authentication profile and must not override the tracking URI with a local tracking server address.
+
+#### Step 6: Run a tracking test
+
+From the project root, run the MLflow-enabled training script:
+
+```powershell
+python scripts/train_model_mlflow.py --margin-struct 100
+```
+
+After the run completes, open your Databricks workspace and navigate to the experiment:
+
+```text
+/Shared/hankel-anomaly-detection
+```
+
+Verify that the run appears with its parameters, metrics, and available artifacts. You can then run the evaluation script and compare the recorded experiments.
+
+**Security note:** Do not commit Databricks credentials, tokens, `.databrickscfg`, or other private configuration files to GitHub. Keep the local authentication profile outside version control.
+
+For additional details, see the official [Databricks CLI authentication documentation](https://docs.databricks.com/aws/en/dev-tools/cli/authentication) and [configuration profiles guide](https://docs.databricks.com/aws/en/dev-tools/cli/auth-config-profiles).
+
+## 5. Data Requirements
+
+Place the four MATLAB files in `data/raw/`:
+
+| File | MATLAB variable | Expected shape |
+|---|---|---|
+| `H_strongNL_MC.mat` | `H_nom_strong_all` | `(78000, 78)` |
+| `H_test_strongNL_MC.mat` | `H_nom_strong_test_all` | `(78, 78, 1000)` |
+| `H_s_dmg1_MC.mat` | `H_anom_dmg1_strong` | `(78, 78, 1000)` |
+| `H_s_dmg2_MC.mat` | `H_anom_dmg2_strong` | `(78, 78, 1000)` |
+
+These are the expected dimensions for the current dataset configuration. Verify the variable names and shapes against your actual MATLAB files before running the experiment.
+
+The original MATLAB datasets are not included in this repository. Users must obtain the data separately and ensure they have permission to use it.
+
+## 6. Training and Evaluation
+
+### 6.1. Training with different `margin_struct` values
+
+The `margin_struct` parameter controls the expansion of the ambient-data bounds. A value of `0` disables the expansion, while larger values increase the range.
+
+The current experiments investigate four values:
+
+- `100`: wider ambient bounds.
+- `10`: moderately expanded ambient bounds.
+- `1`: smaller expansion.
+- `0`: no expansion.
+
+Run the MLflow-enabled training script from the project root. Each command starts a separate training run with the specified parameter.
+
+**Experiment 1: `margin_struct = 100`**
+
+```powershell
+python scripts/train_model_mlflow.py --margin-struct 100
+```
+
+**Experiment 2: `margin_struct = 10`**
+
+```powershell
+python scripts/train_model_mlflow.py --margin-struct 10
+```
+
+**Experiment 3: `margin_struct = 1`**
+
+```powershell
+python scripts/train_model_mlflow.py --margin-struct 1
+```
+
+**Experiment 4: `margin_struct = 0`**
+
+```powershell
+python scripts/train_model_mlflow.py --margin-struct 0
+```
+
+The scripts use the configured training parameters and record experiment information through MLflow. Checkpoints and other artifacts are saved according to the project's artifact configuration.
+
+### 6.2. Evaluating the trained models
+
+After training, evaluate each model using the same `margin_struct` value used for its training run.
+
+**Evaluate the model trained with `margin_struct = 100`**
+
+```powershell
+python scripts/evaluate_model_mlflow.py --margin-struct 100
+```
+
+**Evaluate the model trained with `margin_struct = 10`**
+
+```powershell
+python scripts/evaluate_model_mlflow.py --margin-struct 10
+```
+
+**Evaluate the model trained with `margin_struct = 1`**
+
+```powershell
+python scripts/evaluate_model_mlflow.py --margin-struct 1
+```
+
+**Evaluate the model trained with `margin_struct = 0`**
+
+```powershell
+python scripts/evaluate_model_mlflow.py --margin-struct 0
+```
+
+The evaluation script selects the corresponding training run/model based on `margin_struct`, so a training run ID does not need to be supplied manually.
+
+Make sure the corresponding training run exists and that the checkpoint artifacts are accessible before evaluating a model.
+
+### 6.3. Comparing experiments
+
+After running training and evaluation, use the comparison script:
+
+```powershell
+python scripts/compare_mlflow_runs.py
+```
+
+The comparison script retrieves the recorded runs and generates a comparison of the available metrics and experiment configurations.
+
+For a meaningful comparison, use consistent evaluation datasets and keep other training settings unchanged when investigating the effect of `margin_struct`.
+
+## 7. Evaluation Method
+
+The evaluation procedure calculates anomaly scores for nominal, damage-1, and damage-2 trials. The threshold is calibrated from nominal data according to the implemented scoring rule.
+
+The reported nominal flagged fraction estimates the empirical false-positive fraction on the nominal test set. The corresponding fractions for damage-1 and damage-2 indicate the empirical detection rates at the selected threshold.
+
+The results depend on the trained model, training configuration, data preparation, and threshold-calibration procedure.
+
+## 8. Testing and Code Quality
+
+Run the automated tests:
 
 ```powershell
 python -m pytest -q
 ```
 
-The tests check basic data utility and anomaly-threshold behavior. They do not validate
-the scientific correctness of the full experiment.
+Run the code checks:
 
-## 3. Suggested project layout
+```powershell
+python -m ruff check src tests
+```
 
-- `src/hankel_anomaly/models.py`: neural network architectures
-- `src/hankel_anomaly/data.py`: input validation and data loading helpers
-- `src/hankel_anomaly/training.py`: reusable training loop
-- `src/hankel_anomaly/scoring.py`: anomaly score and threshold functions
-- `src/hankel_anomaly/artifacts.py`: model checkpoint save/load
-- `tests/`: automated tests
-- `.github/workflows/tests.yml`: run checks on every push and pull request
+The tests cover basic data preparation, evaluation behavior, and the training pipeline. They help detect implementation errors but do not establish the scientific validity of the complete experiment.
 
-## 4. Scientific checks to complete before deployment
+GitHub Actions runs tests and code checks automatically on pushes and pull requests.
 
-1. Confirm tensor dimensions at each loading and reshaping step.
-2. Ensure the threshold is calibrated only from an agreed nominal calibration set.
-3. Separate training, calibration, and final test data by experiment/run where possible.
-4. Define the intended unit of a score: one row, one Hankel matrix, or one Monte Carlo trial.
-5. Evaluate false-positive rate and damage-detection rate, not only a plot.
-6. Save the configuration, random seed, dataset version, metrics, and model artifact together.
+## 9. Reproducibility Considerations
 
-## 5. Next increments
+For meaningful comparisons between experiments:
 
-1. Connect the actual `.mat` files and add a data-shape report.
-2. Add a complete training/evaluation entry point.
-3. Add MLflow experiment tracking.
-4. Add a prediction interface and batch inference tests.
-5. Add monitoring and a retraining decision policy.
-6. Consider Databricks only after the local workflow is reproducible.
+- Record the random seed and model configuration.
+- Keep training, calibration, and final test data separate where possible.
+- Verify tensor dimensions at loading, flattening, and reshaping steps.
+- Document the dataset version and `margin_struct` value.
+- Calibrate the anomaly threshold using the intended nominal calibration data.
+- Evaluate both false-positive and damage-detection rates.
+- Associate model artifacts and evaluation metrics with their corresponding MLflow runs.
+
+MLflow helps organize experiment metadata and artifacts, but reproducibility also depends on the data, software environment, and training procedure.
+
+## 10. Data and Artifact Management
+
+Raw MATLAB files, model checkpoints, generated plots, and local MLflow tracking databases are not intended to be committed to version control unless there is a deliberate reason to distribute them.
+
+Before publishing the repository, verify that you have permission to redistribute any external datasets and that no credentials or private configuration files are included.

@@ -1,7 +1,8 @@
 import pytest
 import torch
+
+from hankel_anomaly.data import flatten_hankel_merged, sample_hypercube
 from hankel_anomaly.scoring import classify_scores, estimate_threshold
-from hankel_anomaly.data import sample_hypercube, flatten_hankel_merged
 
 
 def test_threshold_and_classification():
