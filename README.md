@@ -1,6 +1,6 @@
 # Hankel Anomaly Detection
 
-This project refactors a research implementation of Hankel-based anomaly detection into a modular Python project. It separates data loading, model training, evaluation, and experiment tracking, and includes automated tests and GitHub Actions for continuous integration.
+This repository refactors a research implementation of Hankel-based anomaly detection into a modular Python project. The original paper is called "Fault Detection on Manifolds of Nonlinear Dynamical Systems with Dual Autoencoders" and can be found in https://arxiv.org/pdf/2608.17698. It separates data loading, model training, evaluation, and experiment tracking, and includes automated tests and GitHub Actions for continuous integration. Therefore, further extensions of the experiments and additions to the source code is under progress
 
 The project is intended as a starting point for making a research implementation more reproducible and easier to maintain.
 
