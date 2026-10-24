@@ -327,6 +327,16 @@ The comparison script retrieves the recorded runs and generates a comparison of 
 
 For a meaningful comparison, use consistent evaluation datasets and keep other training settings unchanged when investigating the effect of `margin_struct`.
 
+### Comparison of `margin_struct` settings
+
+To investigate the effect of the structural margin parameter, we compare the evaluation results obtained with `margin_struct` values of 100, 10, 1, and 0. The experiments are tracked using MLflow and evaluated on nominal data and two damage conditions.
+
+<img src="docs/figures/evaluation_rates.png"
+     alt="Comparison of evaluation metrics for different margin_struct settings"
+     width="600">
+
+The comparison considers the false-positive rate on nominal data and the detection rates for the two damage conditions. These metrics help assess the trade-off between correctly identifying damage and avoiding false alarms.
+
 ## 7. Evaluation Method
 
 The evaluation procedure calculates anomaly scores for nominal, damage-1, and damage-2 trials. The threshold is calibrated from nominal data according to the implemented scoring rule.
